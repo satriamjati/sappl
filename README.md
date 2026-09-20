@@ -6,6 +6,11 @@ Features:
 - Launch mobile apps separately
 - Keep using mobile apps with dimmed screen
 
+Plans:
+- Fullscreen mirror to avoid manually open scrcpy at all
+- More custom settings for launching apps
+- Design adaptation for new features
+
 Required:
 - [scrcpy](https://github.com/Genymobile/scrcpy/releases) (included scrcpy-win64-v4.1)
 
