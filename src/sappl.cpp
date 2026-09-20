@@ -16,8 +16,12 @@ SapplApp::~SapplApp() {
 }
 
 void SapplApp::Run() {
-    hInst =
-        reinterpret_cast<HINSTANCE>(GetModuleHandle(nullptr));
+    hInst = reinterpret_cast<HINSTANCE>(GetModuleHandle(nullptr));
+    if (!processOps_.GetRequiredPath()) {
+        systemOps_.HandleError(ERROR_FILE_NOT_FOUND);
+        return;
+    }
+    
     if (!InitInstance(hInst, SW_SHOW)) {
         systemOps_.HandleError(GetLastError());
         return;
@@ -28,6 +32,95 @@ void SapplApp::Run() {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
+}
+
+std::wstring SapplApp::ProcessOperations::GetAppDirectory() 
+{
+    wchar_t buffer[MAX_PATH];
+
+    DWORD length = GetModuleFileNameW(
+        nullptr,
+        buffer,
+        MAX_PATH
+    );
+
+    if (length == 0)
+        return L"";
+
+    std::wstring path(buffer, length);
+
+    size_t pos = path.find_last_of(L"\\/");
+
+    if (pos == std::wstring::npos)
+        return L"";
+
+    return path.substr(0, pos);
+}
+
+bool SapplApp::ProcessOperations::GetRequiredPath()
+{
+    const std::wstring basePath = GetAppDirectory();
+    const std::wstring filenames[] = {
+        L"scrcpy.exe",
+        L"adb.exe"
+    };
+
+    std::wstring* requiredPaths[] = {
+        &scrcpyPath_,
+        &adbPath_
+    };
+
+    for (int i = 0; i < 2; ++i) {
+
+        const std::wstring bundled =
+            basePath + L"\\scrcpy\\" + filenames[i];
+
+        if (GetFileAttributesW(bundled.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            *requiredPaths[i] = bundled;
+            continue;
+        }
+
+        const std::wstring local =
+            basePath + L"\\" + filenames[i];
+
+        if (GetFileAttributesW(local.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            *requiredPaths[i] = local;
+            continue;
+        }
+
+        wchar_t buffer[MAX_PATH];
+
+        const DWORD length = SearchPathW(
+            nullptr,
+            filenames[i].c_str(),
+            nullptr,
+            MAX_PATH,
+            buffer,
+            nullptr
+        );
+
+        if (length > 0 && length < MAX_PATH) {
+            *requiredPaths[i] = buffer;
+            continue;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+
+
+std::wstring SapplApp::ProcessOperations::GetLaunchCommand(const DiscoveredApp& app) {
+    std::wstring command = scrcpyPath_ +
+        (data_.settings.forceUsb ? L" -d" : L"") +
+        (data_.settings.virtualDisplay ? L" --new-display" : L"") +
+        (data_.settings.alwaysOnTop ? L" --always-on-top" : L"") +
+        (data_.settings.flexResolution ? L" -x" : L"") +
+        L" --window-title=\"" + app.name + L"\"" +
+        L" --start-app=" + app.packageName;
+    return command;
 }
 
 bool SapplApp::ProcessOperations::Run(
@@ -151,8 +244,8 @@ bool SapplApp::ProcessOperations::RunAndRead(
 void SapplApp::ProcessOperations::ResetKeepAlive(HWND hWnd) {
     StopKeepAlive();
     keepAliveThread_ = std::jthread([this,hWnd](std::stop_token stoken) {
-        std::wstring command = 
-            L"scrcpy -Sw --no-window --no-audio --keep-active";
+        std::wstring command = scrcpyPath_ +
+            L" -Sw --no-window --no-audio --keep-active";
         if (data_.settings.forceUsb) {
             command += L" -d";
         }
@@ -187,7 +280,7 @@ void SapplApp::Refresh(HWND hWnd) {
 bool SapplApp::ProcessOperations::ReloadAppList(HWND hWnd) 
 {
     for (int i = 0; i < 2; ++i) {
-        std::wstring command = std::wstring(L"scrcpy --list-apps");
+        std::wstring command = scrcpyPath_ + L" --list-apps";
         if (data_.settings.forceUsb) {
             command += L" -d";
         }
@@ -212,18 +305,6 @@ bool SapplApp::ProcessOperations::ReloadAppList(HWND hWnd)
     return 0;
 }
 
-
-
-std::wstring SapplApp::ProcessOperations::GetLaunchCommand(const DiscoveredApp& app) {
-    std::wstring command = std::wstring(L"scrcpy") +
-        (data_.settings.forceUsb ? L" -d" : L"") +
-        (data_.settings.virtualDisplay ? L" --new-display" : L"") +
-        (data_.settings.alwaysOnTop ? L" --always-on-top" : L"") +
-        (data_.settings.flexResolution ? L" -x" : L"") +
-        L" --window-title=\"" + app.name + L"\"" +
-        L" --start-app=" + app.packageName;
-    return command;
-}
 
 
 
@@ -285,7 +366,7 @@ void SapplApp::ProcessOperations::ParseAppListOutput(const std::wstring& output)
 }
 
 bool SapplApp::ProcessOperations::SetupWifi(HWND hWnd) {
-    if (!Run(L"adb tcpip 5555 -d"))
+    if (!Run(adbPath_ + L" tcpip 5555 -d"))
         return false;
 
     std::wstring phoneIp;
@@ -306,9 +387,7 @@ bool SapplApp::ProcessOperations::SetupWifi(HWND hWnd) {
     }
 
     std::wstring command =
-        L"adb connect -d " +
-        phoneIp +
-        L":5555";
+        adbPath_ + L" connect -d " + phoneIp + L":5555";
 
     for (int i = 0; i < 10; ++i)
     {
@@ -325,7 +404,7 @@ bool SapplApp::ProcessOperations::SetupWifi(HWND hWnd) {
 
 std::wstring SapplApp::ProcessOperations::GetPhoneIP() {
     std::wstring output;
-    RunAndRead(L"adb -d wait-for-device shell ip -f inet addr show wlan0", output);
+    RunAndRead(adbPath_ + L" -d wait-for-device shell ip -f inet addr show wlan0", output);
     size_t position = output.find(L"inet ");
 
     if (position == std::string::npos)
@@ -780,10 +859,6 @@ void SapplApp::UIOperations::UpdateAppListDisplay(std::vector<DiscoveredApp> app
     }
 }
 
-
-
-
-
 SapplApp::UIOperations::~UIOperations() {
     if (ui_.titleFont) {
         DeleteObject(ui_.titleFont);
@@ -809,30 +884,22 @@ void SapplApp::SystemOperations::CleanupResources() {
 BOOL SapplApp::InitInstance(HINSTANCE hInstance, int nCmdShow) {
     WNDCLASSEXW wcex;
 
-
-
-    // wcex.cbSize = sizeof(WNDCLASSW);
-    wcex.cbSize = sizeof(WNDCLASSEXW);
+    wcex.cbSize         = sizeof(WNDCLASSEXW);
     wcex.style          = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc    = WndProcStatic; 
     wcex.cbClsExtra     = 0;
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
-
-    wcex.hIcon = (HICON)LoadIcon(hInstance, MAKEINTRESOURCE(IDI_SAPPL_APP));
-//  if (!wcex.hIconSm ) {
-//     systemOps_.HandleError(GetLastError());
-//     MessageBoxW(NULL, L"Failed to load small icon.", L"Error", MB_OK | MB_ICONERROR);
-//     return FALSE;
-// }
-    wcex.hIconSm = (HICON)LoadIcon(hInstance, MAKEINTRESOURCE(IDI_SAPPL_APP));
-
-// if (!wcex.hIcon ) {
-//     systemOps_.HandleError(GetLastError());
-//     MessageBoxW(NULL, L"Failed to load big icon.", L"Error", MB_OK | MB_ICONERROR);
-//     return FALSE;
-// }
-
+    wcex.hIcon          = (HICON)LoadImageW(hInstance, MAKEINTRESOURCE(IDI_SAPPL_APP),
+                            IMAGE_ICON, 
+                            GetSystemMetrics(SM_CXSMICON), 
+                            GetSystemMetrics(SM_CYSMICON), 
+                            LR_SHARED); 
+    wcex.hIconSm        = (HICON)LoadImageW(hInstance, MAKEINTRESOURCE(IDI_SAPPL_APP),
+                            IMAGE_ICON, 
+                            GetSystemMetrics(SM_CXSMICON), 
+                            GetSystemMetrics(SM_CYSMICON), 
+                            LR_SHARED); 
     wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
     wcex.hbrBackground  = nullptr;
     wcex.lpszMenuName   = NULL;
@@ -881,8 +948,6 @@ BOOL SapplApp::InitInstance(HINSTANCE hInstance, int nCmdShow) {
     UpdateWindow(hWnd_);
 
     // Auto start here. WM_CREATE is too early.
-    
-    
     Refresh(hWnd_);
     processOps_.ResetKeepAlive(hWnd_);
     uiOps_.UpdateStatusDisplay(data_.settings);

@@ -1,27 +1,30 @@
 SAPPL: scrcpy Application Launcher
 
-Requires:
-- scrcpy: https://github.com/Genymobile/scrcpy (add to env PATH)
-
 Features:
 - Auto connection USB/WiFi with USB priority
 - One-click Setup WiFi connection
 - Launch mobile apps separately
 - Keep using mobile apps with dimmed screen
 
+Required:
+- [scrcpy](https://github.com/Genymobile/scrcpy/releases)
+
 How to use :
-0. Download & extract scrcpy then add to path
+1. Download [sappl](https://github.com/satriamjati/sappl/archive/refs/heads/main.zip) and extract ``sappl.exe`` 
+1. Copy `sappl.exe` to `scrcpy` path (or keep anywhere if `scrcpy` set as path)
 1. Enable USB debugging on your android
-2. Connect android to  pc via USB (may need unlocked screen)
-3. Open SAPPL.exe
+2. Connect android to  pc via USB
+3. Open ``sappl.exe``
 4. Wait for refresh
-5. Click Setup WiFi
+5. Click ``Set WiFi``
 6. Disconnect android
 7. Launch your apps by double click
 
 Notes:
-- Refresh only needed if some apps are not shown (you may need unlock screen)
-- You may need to reset Keep Alive (KA) if open your screen physically, or changing connection (USB/WiFi)
-- Turn on Force USB (fUSB) if using via cable after setup WiFi, or app not launched
+- ``Refresh`` only needed if some apps are not shown (you may need unlock screen)
+- ``KA Reset`` if your phone screen physically on, or changing connection (USB/WiFi)
+- ``KA Off`` to turn off anti-sleep feature 
+- ``fUSB FT``  to force usb connection if both usb and wifi connected, othweise app will not launched
+- ``Set WiFi`` to setup wifi connection
 
 Tested on scrcpy 4.1 using android 14

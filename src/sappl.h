@@ -57,6 +57,8 @@ private:
         explicit ProcessOperations(Data& data)
             : data_(data) {};
         ~ProcessOperations();
+        std::wstring GetAppDirectory();        
+        bool GetRequiredPath();
         std::wstring GetLaunchCommand(const DiscoveredApp& app);
         bool Run(const std::wstring& command);
         bool RunAndRead(
@@ -69,9 +71,10 @@ private:
         bool SetupWifi(HWND hwnd);
     private:
         Data& data_;
+        std::wstring scrcpyPath_;
+        std::wstring adbPath_ ;
         std::jthread keepAliveThread_;
-        
-        std::jthread wifiSetupThread_;
+
         std::wstring GetPhoneIP();
         std::wstring Utf8ToWide(const char* utf8, int size);
 
