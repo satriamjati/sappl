@@ -1,0 +1,1 @@
+#define IDI_SAPPL_APP 101

@@ -1,0 +1,2 @@
+#include "resource.h"
+IDI_SAPPL_APP ICON "sappl.ico"
