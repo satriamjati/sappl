@@ -92,6 +92,7 @@ private:
             BTN_FORCE_USB,
             BTN_SETUP_WIFI,
             BTN_SEARCH,
+            BTN_SEARCH_CLEAR,
             COUNT_BTNS
         };
         enum TextBoxIndex {
@@ -121,6 +122,9 @@ private:
         void DisableButton(int buttonIndex){
             EnableWindow(ui_.buttons[buttonIndex],false);
         };
+        HWND GetSearchBox(){
+            return ui_.textBoxes[TextBoxIndex::TXTB_SEARCH];
+        }
         HWND GetAppList(){
             return ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST];
         }
@@ -168,6 +172,10 @@ private:
             HWND NewButtonTiny(PCWSTR text, int x, int y, HWND parent, HMENU id) {
                 return CreateChildWindow(L"BUTTON", text, BS_OWNERDRAW | WS_TABSTOP,
                                         x, y, TINY_BUTTON_WIDTH, SHORT_BUTTON_HEIGHT, parent, id);
+            }
+            HWND NewButtonMicro(PCWSTR text, int x, int y, HWND parent, HMENU id) {
+                return CreateChildWindow(L"BUTTON", text, BS_OWNERDRAW | WS_TABSTOP,
+                                        x, y, MICRO_BUTTON_WIDTH, SHORT_BUTTON_HEIGHT, parent, id);
             }   
     
         };
@@ -206,6 +214,7 @@ private:
     static constexpr int BTN_SETUP_WIFI = 1006;
     static constexpr int TXTB_SEARCH = 1101;
     static constexpr int BTN_SEARCH = 1102;
+    static constexpr int BTN_SEARCH_CLEAR = 1103;
     static constexpr int LSTB_APP_LIST = 1201;
     
     // Messages
@@ -215,6 +224,7 @@ private:
     
     // Dimensions
     static constexpr int MARGIN = 20;
+    static constexpr int MICRO_BUTTON_WIDTH = 25;
     static constexpr int TINY_BUTTON_WIDTH = 50;
     static constexpr int SMALL_BUTTON_WIDTH = 75;
     static constexpr int MEDIUM_BUTTON_WIDTH = 120;

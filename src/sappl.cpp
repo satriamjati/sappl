@@ -584,25 +584,27 @@ void SapplApp::UIOperations::ConfigureLayout(HWND hwnd) {
         reinterpret_cast<HMENU>(SapplApp::BTN_KEEP_ALIVE_OFF));
 
     x += SMALL_BUTTON_WIDTH + BUTTON_GAP;
-
     ui_.buttons[ButtonIndex::BTN_REFRESH] = BuildEntity().NewButtonMedium(
         L"Refresh", x, BUTTON_TOP, hwnd, 
         reinterpret_cast<HMENU>(SapplApp::BTN_REFRESH));
 
     x += MEDIUM_BUTTON_WIDTH + BUTTON_GAP;
-
     ui_.buttons[ButtonIndex::BTN_FORCE_USB] = BuildEntity().NewButtonSmall(
         L"fUSB FT", x, BUTTON_TOP, hwnd, 
         reinterpret_cast<HMENU>(SapplApp::BTN_FORCE_USB));
 
     x += SMALL_BUTTON_WIDTH + BUTTON_GAP;
-
     ui_.buttons[ButtonIndex::BTN_SETUP_WIFI] = BuildEntity().NewButtonSmall(
         L"Setup WiFi", x, BUTTON_TOP, hwnd,
         reinterpret_cast<HMENU>(SapplApp::BTN_SETUP_WIFI));
     
     x = MARGIN;
-    int searchBoxWidth = WINDOW_WIDTH - 2 * (MARGIN + TINY_BUTTON_WIDTH + BUTTON_GAP);
+    ui_.buttons[ButtonIndex::BTN_SEARCH_CLEAR] = BuildEntity().NewButtonMicro(
+        L"Clear", x, SEARCH_TOP, hwnd,
+        reinterpret_cast<HMENU>(SapplApp::BTN_SEARCH_CLEAR));
+    
+    x += MICRO_BUTTON_WIDTH + BUTTON_GAP;
+    int searchBoxWidth = WINDOW_WIDTH - 2 * MARGIN - 2 *( TINY_BUTTON_WIDTH + BUTTON_GAP) -( MICRO_BUTTON_WIDTH + BUTTON_GAP);
     ui_.textBoxes[TextBoxIndex::TXTB_SEARCH] = BuildEntity().NewWindow(
         L"EDIT", L"",
         WS_BORDER | ES_AUTOHSCROLL,
@@ -694,8 +696,11 @@ bool SapplApp::UIOperations::DrawButtons(LPARAM lParam) {
             text = L"F 11";
             break;
         case SapplApp::BTN_SEARCH:
-            text = L"Search";
+            text = L"Find";
             break;
+        case SapplApp::BTN_SEARCH_CLEAR:
+            text = L"X";
+            break;  
         default:
             return false; 
     }
@@ -1115,6 +1120,12 @@ LRESULT CALLBACK SapplApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
                         }
                     }));
                     return 0;
+
+                case BTN_SEARCH_CLEAR:
+                    SetWindowTextW(uiOps_.GetSearchBox(), L"");
+                    uiOps_.UpdateAppListDisplay(data_.discoveredApps);
+                    return 0;
+
                 case BTN_MIRROR:
                     uiOps_.DisableButton(uiOps_.BTN_MIRROR);
                     uiOps_.UpdateStatusDisplay(data_.settings, RUNNING_STATE);
