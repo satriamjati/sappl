@@ -37,6 +37,7 @@ private:
 
     struct DiscoveredApp {
         std::wstring name;
+        std::wstring type;
         std::wstring packageName;
         DWORD processId;
         bool isRunning;

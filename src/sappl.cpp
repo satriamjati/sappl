@@ -323,8 +323,16 @@ void SapplApp::ProcessOperations::ParseAppListOutput(const std::wstring& output)
             end - position
         );
 
-        if (line.rfind(L" * ", 0) == 0 ||
-            line.rfind(L" - ", 0) == 0)
+        std::wstring type = L"";
+
+        if (line.rfind(L" * ", 0) == 0){
+            type = L"System";
+        }
+        else if (line.rfind(L" - ", 0) == 0){
+            type = L"User";
+        }
+
+        if (type == L"System" || type == L"User")
         {
             std::wstring appLine = line.substr(3);
 
@@ -352,7 +360,8 @@ void SapplApp::ProcessOperations::ParseAppListOutput(const std::wstring& output)
                 {
                     app.name.pop_back();
                 }
-
+                
+                app.type = type;
                 app.packageName = appLine.substr(
                     separator + 1
                 );
@@ -833,22 +842,23 @@ void SapplApp::UIOperations::UpdateAppListDisplay(std::vector<DiscoveredApp> app
         0
     );
 
-    int tabStop = 120;
+    int tabStop[] = {100, 140, 280};
 
     SendMessageW(
         ui_.appList,
         LB_SETTABSTOPS,
-        1,
+        static_cast<WPARAM>(std::size(tabStop)),
         reinterpret_cast<LPARAM>(&tabStop)
     );
 
     for (const auto& app : apps)
     {
         std::wstring name = app.name;
+        std::wstring type = app.type;
         std::wstring packageName = app.packageName;
 
         std::wstring text =
-            name + L"\t" + packageName;
+            name + L"\t" + type + L"\t" + packageName;
 
         SendMessageW(
             ui_.appList,
