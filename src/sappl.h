@@ -60,7 +60,7 @@ private:
         ~ProcessOperations();
         std::wstring GetAppDirectory();        
         bool GetRequiredPath();
-        std::wstring GetLaunchCommand(const DiscoveredApp& app);
+        std::wstring GetLaunchCommand(const DiscoveredApp& app ={});
         bool Run(const std::wstring& command);
         bool RunAndRead(
             const std::wstring& command,
@@ -85,14 +85,24 @@ private:
     public:
     
         enum ButtonIndex {
+            BTN_MIRROR,
             BTN_REFRESH,
             BTN_KEEP_ALIVE_RESET,
             BTN_KEEP_ALIVE_OFF,
             BTN_FORCE_USB,
             BTN_SETUP_WIFI,
-            BTN_MIRROR,
-            COUNT
+            BTN_SEARCH,
+            COUNT_BTNS
         };
+        enum TextBoxIndex {
+            TXTB_SEARCH,
+            COUNT_TEXTBOXES
+        };
+        enum ListBoxIndex {
+            LSTB_APP_LIST,
+            COUNT_LISTBOXES
+        };
+
         Theme GetSystemAppearanceMode();
         void InitializeUI();
         void SetWindowTheme(HWND hWnd);
@@ -112,7 +122,7 @@ private:
             EnableWindow(ui_.buttons[buttonIndex],false);
         };
         HWND GetAppList(){
-            return ui_.appList;
+            return ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST];
         }
         ~UIOperations();
 
@@ -121,8 +131,9 @@ private:
             HWND title;
             HFONT titleFont;
             HWND status;
-            HWND buttons[ButtonIndex::COUNT];
-            HWND appList;
+            HWND buttons[ButtonIndex::COUNT_BTNS];  
+            HWND textBoxes[TextBoxIndex::COUNT_TEXTBOXES];
+            HWND listBoxes[ListBoxIndex::COUNT_LISTBOXES];
             HBRUSH darkBrush;
         } ui_;
 
@@ -154,6 +165,10 @@ private:
                 return CreateChildWindow(L"BUTTON", text, BS_OWNERDRAW | WS_TABSTOP,
                                         x, y, MEDIUM_BUTTON_WIDTH, BUTTON_HEIGHT, parent, id);
             }
+            HWND NewButtonTiny(PCWSTR text, int x, int y, HWND parent, HMENU id) {
+                return CreateChildWindow(L"BUTTON", text, BS_OWNERDRAW | WS_TABSTOP,
+                                        x, y, TINY_BUTTON_WIDTH, SHORT_BUTTON_HEIGHT, parent, id);
+            }   
     
         };
 
@@ -181,14 +196,17 @@ private:
     static constexpr int WINDOW_WIDTH = 480;
     static constexpr int WINDOW_HEIGHT = 640;
     
-    // Button IDs
+    // Element IDs
+    static constexpr int BTN_MIRROR = 1000;
     static constexpr int BTN_REFRESH = 1001;
     static constexpr int BTN_KEEP_ALIVE_RESET = 1002;
     static constexpr int BTN_KEEP_ALIVE_OFF = 1003;
     static constexpr int BTN_RESET = 1004;
     static constexpr int BTN_FORCE_USB = 1005;
     static constexpr int BTN_SETUP_WIFI = 1006;
-    static constexpr int BTN_MIRROR = 1007;
+    static constexpr int TXTB_SEARCH = 1101;
+    static constexpr int BTN_SEARCH = 1102;
+    static constexpr int LSTB_APP_LIST = 1201;
     
     // Messages
     static constexpr UINT WM_KEEP_ALIVE = WM_APP + 1;
@@ -196,18 +214,23 @@ private:
     static constexpr UINT WM_SETUP_WIFI = WM_APP + 3;
     
     // Dimensions
+    static constexpr int MARGIN = 20;
+    static constexpr int TINY_BUTTON_WIDTH = 50;
     static constexpr int SMALL_BUTTON_WIDTH = 75;
     static constexpr int MEDIUM_BUTTON_WIDTH = 120;
+    static constexpr int SHORT_BUTTON_HEIGHT = 20;
     static constexpr int BUTTON_HEIGHT = 40;
     static constexpr int BUTTON_GAP = 10;
-    static constexpr int MARGIN = 20;
+    static constexpr int SEARCH_BOX_HEIGHT = 20;
+    static constexpr int APP_LIST_WIDTH = 400;
     static constexpr int TITLE_TOP = 25;
     static constexpr int TITLE_HEIGHT = 50;
     static constexpr int STATUS_TOP = 75;
     static constexpr int STATUS_HEIGHT = 40;
     static constexpr int BUTTON_TOP = 115;
-    static constexpr int LIST_TOP = 175;
-    static constexpr int TAB_STOP = 120;
+    static constexpr int SEARCH_TOP = 175;
+    static constexpr int LIST_TOP = 215;
+    static constexpr int TAB_STOP[] = {100, 140, 280};
     
     std::vector<std::jthread> worker_;
     HINSTANCE hInst;

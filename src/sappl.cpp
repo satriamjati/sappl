@@ -115,8 +115,15 @@ bool SapplApp::ProcessOperations::GetRequiredPath()
 std::wstring SapplApp::ProcessOperations::GetLaunchCommand(const DiscoveredApp& app) {
     std::wstring command = scrcpyPath_ +
         (data_.settings.forceUsb ? L" -d" : L"") +
+        (data_.settings.alwaysOnTop ? L" --always-on-top" : L"");
+
+    if (app.packageName.empty()) {
+        command = command + L" --turn-screen-off";
+        return command;
+    }
+
+    command = command + 
         (data_.settings.virtualDisplay ? L" --new-display" : L"") +
-        (data_.settings.alwaysOnTop ? L" --always-on-top" : L"") +
         (data_.settings.flexResolution ? L" -x" : L"") +
         L" --window-title=\"" + app.name + L"\"" +
         L" --start-app=" + app.packageName;
@@ -593,14 +600,32 @@ void SapplApp::UIOperations::ConfigureLayout(HWND hwnd) {
     ui_.buttons[ButtonIndex::BTN_SETUP_WIFI] = BuildEntity().NewButtonSmall(
         L"Setup WiFi", x, BUTTON_TOP, hwnd,
         reinterpret_cast<HMENU>(SapplApp::BTN_SETUP_WIFI));
+    
+    x = MARGIN;
+    int searchBoxWidth = WINDOW_WIDTH - 2 * (MARGIN + TINY_BUTTON_WIDTH + BUTTON_GAP);
+    ui_.textBoxes[TextBoxIndex::TXTB_SEARCH] = BuildEntity().NewWindow(
+        L"EDIT", L"",
+        WS_BORDER | ES_AUTOHSCROLL,
+        x, SEARCH_TOP, searchBoxWidth, SEARCH_BOX_HEIGHT, hwnd
+    );
 
-    ui_.appList = BuildEntity().NewWindow(
+    x += searchBoxWidth + BUTTON_GAP;
+    ui_.buttons[ButtonIndex::BTN_SEARCH] = BuildEntity().NewButtonTiny(
+        L"Search", x, SEARCH_TOP, hwnd,
+        reinterpret_cast<HMENU>(SapplApp::BTN_SEARCH));    
+    
+    x += TINY_BUTTON_WIDTH + BUTTON_GAP;
+    ui_.buttons[ButtonIndex::BTN_MIRROR] = BuildEntity().NewButtonTiny(
+        L"Mirror", x, SEARCH_TOP, hwnd,
+        reinterpret_cast<HMENU>(SapplApp::BTN_MIRROR));
+
+    ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST] = BuildEntity().NewWindow(
         L"LISTBOX", L"", 
         WS_VSCROLL | WS_BORDER |
                 LBS_NOINTEGRALHEIGHT |
                 LBS_NOTIFY |
                 LBS_USETABSTOPS, 
-        MARGIN, LIST_TOP, 960 - (MARGIN * 2), 400, hwnd
+        MARGIN, LIST_TOP, 0, 0, hwnd
     );
 }
 
@@ -665,6 +690,12 @@ bool SapplApp::UIOperations::DrawButtons(LPARAM lParam) {
         case SapplApp::BTN_SETUP_WIFI:
             text = L"Set WiFi";
             break;
+        case SapplApp::BTN_MIRROR:
+            text = L"F 11";
+            break;
+        case SapplApp::BTN_SEARCH:
+            text = L"Search";
+            break;
         default:
             return false; 
     }
@@ -710,8 +741,6 @@ void SapplApp::UIOperations::DynamicResize(HWND hwnd, int width, int height) {
 
     int x =
         (width - totalWidth) / 2;
-
-    constexpr int LIST_TOP = 175;
 
     MoveWindow(
         ui_.title,
@@ -779,7 +808,7 @@ void SapplApp::UIOperations::DynamicResize(HWND hwnd, int width, int height) {
     );
 
     MoveWindow(
-        ui_.appList,
+        ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST],
         MARGIN,
         LIST_TOP,
         width - MARGIN * 2,
@@ -836,19 +865,17 @@ void SapplApp::UIOperations::UpdateStatusDisplay(Settings settings, std::wstring
 
 void SapplApp::UIOperations::UpdateAppListDisplay(std::vector<DiscoveredApp> apps) {
     SendMessageW(
-        ui_.appList,
+        ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST],
         LB_RESETCONTENT,
         0,
         0
     );
 
-    int tabStop[] = {100, 140, 280};
-
     SendMessageW(
-        ui_.appList,
+        ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST],
         LB_SETTABSTOPS,
-        static_cast<WPARAM>(std::size(tabStop)),
-        reinterpret_cast<LPARAM>(&tabStop)
+        static_cast<WPARAM>(std::size(TAB_STOP)),
+        reinterpret_cast<LPARAM>(TAB_STOP)
     );
 
     for (const auto& app : apps)
@@ -859,9 +886,9 @@ void SapplApp::UIOperations::UpdateAppListDisplay(std::vector<DiscoveredApp> app
 
         std::wstring text =
             name + L"\t" + type + L"\t" + packageName;
-
+//
         SendMessageW(
-            ui_.appList,
+            ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST],
             LB_ADDSTRING,
             0,
             reinterpret_cast<LPARAM>(text.c_str())
@@ -1087,7 +1114,12 @@ LRESULT CALLBACK SapplApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
                             PostMessage(hWnd_, SapplApp::WM_SETUP_WIFI, TRUE, 0);
                         }
                     }));
-
+                    return 0;
+                case BTN_MIRROR:
+                    uiOps_.DisableButton(uiOps_.BTN_MIRROR);
+                    uiOps_.UpdateStatusDisplay(data_.settings, RUNNING_STATE);
+                    processOps_.Run(processOps_.GetLaunchCommand({}));
+                    uiOps_.EnableButton(uiOps_.BTN_MIRROR);
                     return 0;
             }
 
