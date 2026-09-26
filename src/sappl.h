@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <thread>
+#include <cwctype>
 
 #include "resource.h"
 
@@ -37,8 +38,10 @@ private:
 
     struct DiscoveredApp {
         std::wstring name;
-        std::wstring type;
         std::wstring packageName;
+        std::wstring type;
+        std::wstring searchableName;
+        std::wstring searchablePackageName;
         DWORD processId;
         bool isRunning;
     };
@@ -114,8 +117,9 @@ private:
         bool DrawButtons(LPARAM lParam);
         int AutoApplyTheme(HWND hwnd, LPARAM lParam);
         void DynamicResize(HWND hwnd, int width, int height);
-        void UpdateStatusDisplay(Settings settings, std::wstring currentState = READY_STATE);
-        void UpdateAppListDisplay(std::vector<DiscoveredApp> apps);
+        void UpdateStatusDisplay(const Settings& settings, const std::wstring& currentState = READY_STATE);
+        void UpdateAppListDisplay(const std::vector<DiscoveredApp>& apps);
+        void UpdateAppListDisplay(const std::vector<DiscoveredApp>& apps, const std::wstring searchTerm);
         void EnableButton(int buttonIndex){
             EnableWindow(ui_.buttons[buttonIndex],true);
         };
@@ -141,43 +145,95 @@ private:
             HBRUSH darkBrush;
         } ui_;
 
+        void ResetAppListDisplay();
+
         class BuildEntity {
         private:
             HWND CreateChildWindow(
-                PCWSTR className, PCWSTR text, DWORD style, 
-                int x, int y, int width, int height, 
-                HWND parent, HMENU id, DWORD exStyle = 0) 
+                PCWSTR className, PCWSTR text, DWORD style,
+                int x, int y, int width, int height,
+                HWND parent, HMENU id, DWORD exStyle = 0)
             {
                 return CreateWindowExW(
-                    exStyle, className, text, 
+                    exStyle, className, text,
                     WS_CHILD | WS_VISIBLE | style,
                     x, y, width, height,
-                    parent, id, GetModuleHandleW(nullptr), nullptr
+                    parent, id,
+                    GetModuleHandleW(nullptr),
+                    nullptr
                 );
             }
-        public:
 
-            HWND NewWindow(PCWSTR className, PCWSTR text, DWORD style, int x, int y, int w, int h, HWND parent) {
-                return CreateChildWindow(className, text, style, x, y, w, h, parent, nullptr);
+            HWND CreateButton(
+                PCWSTR text, int x, int y, int width, int height,
+                HWND parent, HMENU id, DWORD style = 0)
+            {
+                return CreateChildWindow(
+                    L"BUTTON", 
+                    text, BS_OWNERDRAW | WS_TABSTOP | style,
+                    x, y, width, height,
+                    parent, id
+                );
             }
-            
-            HWND NewButtonSmall(PCWSTR text, int x, int y, HWND parent, HMENU id) {
-                return CreateChildWindow(L"BUTTON", text, BS_OWNERDRAW | WS_TABSTOP,
-                                        x, y, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT, parent, id);
+
+        public:
+            HWND NewWindow(
+                PCWSTR className, PCWSTR text, DWORD style,
+                int x, int y, int width, int height,
+                HWND parent)
+            {
+                return CreateChildWindow(
+                    className, text, style,
+                    x, y, width, height,
+                    parent, nullptr
+                );
             }
-            HWND NewButtonMedium(PCWSTR text, int x, int y, HWND parent, HMENU id) {
-                return CreateChildWindow(L"BUTTON", text, BS_OWNERDRAW | WS_TABSTOP,
-                                        x, y, MEDIUM_BUTTON_WIDTH, BUTTON_HEIGHT, parent, id);
+
+            HWND NewButtonSmall(
+                PCWSTR text, int x, int y, HWND parent, HMENU id)
+            {
+                return CreateButton(
+                    text, x, y, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT,
+                    parent, id
+                );
             }
-            HWND NewButtonTiny(PCWSTR text, int x, int y, HWND parent, HMENU id) {
-                return CreateChildWindow(L"BUTTON", text, BS_OWNERDRAW | WS_TABSTOP,
-                                        x, y, TINY_BUTTON_WIDTH, SHORT_BUTTON_HEIGHT, parent, id);
+
+            HWND NewButtonMedium(
+                PCWSTR text, int x, int y, HWND parent, HMENU id)
+            {
+                return CreateButton(
+                    text, x, y, MEDIUM_BUTTON_WIDTH, BUTTON_HEIGHT,
+                    parent, id
+                );
             }
-            HWND NewButtonMicro(PCWSTR text, int x, int y, HWND parent, HMENU id) {
-                return CreateChildWindow(L"BUTTON", text, BS_OWNERDRAW | WS_TABSTOP,
-                                        x, y, MICRO_BUTTON_WIDTH, SHORT_BUTTON_HEIGHT, parent, id);
-            }   
-    
+
+            HWND NewButtonTiny(
+                PCWSTR text, int x, int y, HWND parent, HMENU id,
+                DWORD style = 0)
+            {
+                return CreateButton(
+                    text, x, y, TINY_BUTTON_WIDTH, SHORT_BUTTON_HEIGHT,
+                    parent, id, style
+                );
+            }
+
+            HWND NewButtonTinyDefault(
+                PCWSTR text, int x, int y, HWND parent, HMENU id)
+            {
+                return NewButtonTiny(
+                    text, x, y, parent, id,
+                    BS_DEFPUSHBUTTON
+                );
+            }
+
+            HWND NewButtonMicro(
+                PCWSTR text, int x, int y, HWND parent, HMENU id)
+            {
+                return CreateButton(
+                    text, x, y, MICRO_BUTTON_WIDTH, SHORT_BUTTON_HEIGHT,
+                    parent, id
+                );
+            }
         };
 
 

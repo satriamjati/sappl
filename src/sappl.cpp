@@ -367,11 +367,20 @@ void SapplApp::ProcessOperations::ParseAppListOutput(const std::wstring& output)
                 {
                     app.name.pop_back();
                 }
-                
-                app.type = type;
+        
                 app.packageName = appLine.substr(
                     separator + 1
                 );
+                
+                app.type = type;
+
+                app.searchableName = app.name;
+                for (wchar_t& c : app.searchableName)
+                    c = towlower(c);
+
+                app.searchablePackageName = app.packageName;
+                for (wchar_t& c : app.searchablePackageName)
+                    c = towlower(c);
 
                 apps.push_back(app);
             }
@@ -612,7 +621,7 @@ void SapplApp::UIOperations::ConfigureLayout(HWND hwnd) {
     );
 
     x += searchBoxWidth + BUTTON_GAP;
-    ui_.buttons[ButtonIndex::BTN_SEARCH] = BuildEntity().NewButtonTiny(
+    ui_.buttons[ButtonIndex::BTN_SEARCH] = BuildEntity().NewButtonTinyDefault(
         L"Search", x, SEARCH_TOP, hwnd,
         reinterpret_cast<HMENU>(SapplApp::BTN_SEARCH));    
     
@@ -838,7 +847,7 @@ int SapplApp::UIOperations::AutoApplyTheme(HWND hwnd, LPARAM lParam) {
     return 0;
 }
 
-void SapplApp::UIOperations::UpdateStatusDisplay(Settings settings, std::wstring currentState) 
+void SapplApp::UIOperations::UpdateStatusDisplay(const Settings& settings, const std::wstring& currentState) 
 {
     std::wstring text;
 
@@ -868,36 +877,68 @@ void SapplApp::UIOperations::UpdateStatusDisplay(Settings settings, std::wstring
 
 }
 
-void SapplApp::UIOperations::UpdateAppListDisplay(std::vector<DiscoveredApp> apps) {
+void SapplApp::UIOperations::ResetAppListDisplay() {
+    HWND appList = ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST];
+
     SendMessageW(
-        ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST],
+        appList,
         LB_RESETCONTENT,
         0,
         0
     );
 
     SendMessageW(
-        ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST],
+        appList,
         LB_SETTABSTOPS,
         static_cast<WPARAM>(std::size(TAB_STOP)),
         reinterpret_cast<LPARAM>(TAB_STOP)
     );
+}
+
+void SapplApp::UIOperations::UpdateAppListDisplay(const std::vector<DiscoveredApp>& apps) {
+
+    HWND appList = ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST];
+
+    ResetAppListDisplay();
 
     for (const auto& app : apps)
     {
-        std::wstring name = app.name;
-        std::wstring type = app.type;
-        std::wstring packageName = app.packageName;
-
         std::wstring text =
-            name + L"\t" + type + L"\t" + packageName;
+            app.name + L"\t" + app.type + L"\t" + app.packageName;
 //
         SendMessageW(
-            ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST],
+            appList,
             LB_ADDSTRING,
             0,
             reinterpret_cast<LPARAM>(text.c_str())
         );
+    }
+}
+
+void SapplApp::UIOperations::UpdateAppListDisplay(const std::vector<DiscoveredApp>& apps, const std::wstring searchTerm) {
+    HWND appList = ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST];
+    std::wstring search = searchTerm;
+    for (wchar_t& c : search)
+        c = towlower(c);
+
+    ResetAppListDisplay();
+
+    for (const auto& app : apps)
+    {
+        if (app.searchableName.find(search) != std::wstring::npos ||
+            app.searchablePackageName.find(search) != std::wstring::npos)
+        {
+
+            std::wstring text =
+                app.name + L"\t" + app.type + L"\t" + app.packageName;
+
+            SendMessageW(
+                appList,
+                LB_ADDSTRING,
+                0,
+                reinterpret_cast<LPARAM>(text.c_str())
+            );
+        }
     }
 }
 
@@ -1077,6 +1118,22 @@ LRESULT CALLBACK SapplApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
             break; 
         }
 
+        // case WM_KEYDOWN:
+        // {
+        //     if (wParam == VK_RETURN)
+        //     {
+        //         HWND focus = GetFocus();
+
+        //         if (focus == ui_.GetSearchBox())
+        //         {
+        //             SearchApps();
+        //             return 0;
+        //         }
+        //     }
+
+        //     break;
+        // }
+
         case WM_COMMAND:
         {
             int lo = LOWORD(wParam);
@@ -1119,6 +1176,15 @@ LRESULT CALLBACK SapplApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
                             PostMessage(hWnd_, SapplApp::WM_SETUP_WIFI, TRUE, 0);
                         }
                     }));
+                    return 0;
+                
+                case BTN_SEARCH:
+                    {
+                        wchar_t searchTerm[256];
+                        GetWindowTextW(uiOps_.GetSearchBox(), searchTerm, sizeof(searchTerm)/sizeof(searchTerm[0]));
+                        std::wstring searchStr(searchTerm);
+                        uiOps_.UpdateAppListDisplay(data_.discoveredApps, searchStr);
+                    }
                     return 0;
 
                 case BTN_SEARCH_CLEAR:
