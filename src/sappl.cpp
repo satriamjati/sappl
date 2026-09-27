@@ -391,28 +391,28 @@ void SapplApp::ProcessOperations::ParseAppListOutput(const std::wstring& output)
 }
 
 bool SapplApp::ProcessOperations::SetupWifi(HWND hWnd) {
-    if (!Run(adbPath_ + L" tcpip 5555 -d"))
+    if (!Run(adbPath_ + L" -d tcpip 5555")){
         return false;
+    }
 
     std::wstring phoneIp;
     for (int i = 0; i < 10; ++i)
     {
         phoneIp = GetPhoneIP();
 
-        if (!phoneIp.empty())
+        if (phoneIp != L"")
             break;
 
         Sleep(500);
     }
 
-    if (phoneIp.empty())
+    if (phoneIp == L"")
     {
-        MessageBoxW(hWnd, L"Failed to get device IP. Connect your device to the same Wi-Fi network", L"Setup Wi-Fi", MB_OK | MB_ICONERROR);
         return false;
     }
 
     std::wstring command =
-        adbPath_ + L" connect -d " + phoneIp + L":5555";
+        adbPath_ + L" -d connect " + phoneIp + L":5555";
 
     for (int i = 0; i < 10; ++i)
     {
@@ -1250,6 +1250,7 @@ LRESULT CALLBACK SapplApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
             return 0;
         case WM_SETUP_WIFI:
         {
+
             bool result = static_cast<bool>(wParam);
             uiOps_.EnableButton(uiOps_.BTN_SETUP_WIFI);
             if (result)
