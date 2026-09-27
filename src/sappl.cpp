@@ -915,29 +915,42 @@ void SapplApp::UIOperations::UpdateAppListDisplay(const std::vector<DiscoveredAp
     }
 }
 
-void SapplApp::UIOperations::UpdateAppListDisplay(const std::vector<DiscoveredApp>& apps, const std::wstring searchTerm) {
+void SapplApp::UIOperations::UpdateAppListDisplay(const std::vector<DiscoveredApp>& apps, const std::wstring searchTerm)
+{
     HWND appList = ui_.listBoxes[ListBoxIndex::LSTB_APP_LIST];
     std::wstring search = searchTerm;
+
     for (wchar_t& c : search)
         c = towlower(c);
 
     ResetAppListDisplay();
 
-    for (const auto& app : apps)
+    for (size_t i = 0; i < apps.size(); ++i)
     {
+        const auto& app = apps[i];
+
         if (app.searchableName.find(search) != std::wstring::npos ||
             app.searchablePackageName.find(search) != std::wstring::npos)
         {
-
             std::wstring text =
                 app.name + L"\t" + app.type + L"\t" + app.packageName;
 
-            SendMessageW(
+            LRESULT row = SendMessageW(
                 appList,
                 LB_ADDSTRING,
                 0,
                 reinterpret_cast<LPARAM>(text.c_str())
             );
+
+            if (row != LB_ERR && row != LB_ERRSPACE)
+            {
+                SendMessageW(
+                    appList,
+                    LB_SETITEMDATA,
+                    static_cast<WPARAM>(row),
+                    static_cast<LPARAM>(i)
+                );
+            }
         }
     }
 }
@@ -1205,31 +1218,41 @@ LRESULT CALLBACK SapplApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
                 case LBN_DBLCLK:
                     if(reinterpret_cast<HWND>(lParam) == uiOps_.GetAppList())
                     {
-                        LRESULT index = SendMessageW(
+                        LRESULT row = SendMessageW(
                             uiOps_.GetAppList(),
                             LB_GETCURSEL,
                             0,
                             0
                         );
                         
-                        std::vector<DiscoveredApp> apps = data_.discoveredApps;
+                        if (row != LB_ERR)
+                        {
+                            LRESULT index = SendMessageW(
+                                uiOps_.GetAppList(),
+                                LB_GETITEMDATA,
+                                static_cast<WPARAM>(row),
+                                0
+                            );
 
-                        if (index != LB_ERR &&
-                            static_cast<size_t>(index) < apps.size())                        
-                        {   
-                            
-                            uiOps_.UpdateStatusDisplay(data_.settings, L"Launching...");
-                            std::wstring result;
-                            if (!processOps_.Run(processOps_.GetLaunchCommand(apps[index]))) {
-                                result = L"Failed to launch: ";
-                            } else {
-                                result = L"Launched: ";
+                            if (index != LB_ERR &&
+                                static_cast<size_t>(index) < data_.discoveredApps.size())
+                            {
+                                uiOps_.UpdateStatusDisplay(data_.settings, L"Launching...");
+
+                                const auto& app = data_.discoveredApps[index];
+                                std::wstring command = processOps_.GetLaunchCommand(app);
+                                std::wstring result;
+                                if (!processOps_.Run(command)) {
+                                    result = L"Failed to launch: ";
+                                } else {
+                                    result = L"Launched: ";
+                                }
+                                result += app.name;
+                                uiOps_.UpdateStatusDisplay(data_.settings, result);
                             }
-                            result += apps[index].name;;
-                            uiOps_.UpdateStatusDisplay(data_.settings, result);
-                        }
 
                         return 0;
+                        }
                     }
             }
             break;
